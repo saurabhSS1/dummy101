@@ -1,0 +1,8 @@
+public class UserService implements IUserService {
+private final static Logger LOGGER = LoggerFactory .getLogger(UserService.class);
+@Autowired
+private JdbcTemplate template;
+@Autowired
+private Environment environment;
+@Autowired
+private IUserDao userDao;
