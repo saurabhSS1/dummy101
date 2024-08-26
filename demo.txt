@@ -1,5 +1,17 @@
-import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -7,123 +19,121 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.multipart.MultipartFile;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import org.springframework.ui.Model;
 
 @RunWith(MockitoJUnitRunner.class)
-public class FileUploadControllerTest {
+public class ReportControllerTest {
 
     @Mock
-    private IUploadConfigurationService uploadConfigurationService;
+    private IReportService reportService;
 
     @Mock
-    private AbstractFileUploadService fileuploadService;
-
-    @Mock
-    private IServiceFlow serviceFlow;
-
-    @Mock
-    private IRestService restService;
-
-    @Mock
-    private HttpSession session;
-
-    @Mock
-    private IPayzoneService payzoneService;
-
-    @Mock
-    private ISfdcObjectService sfdc0bjectService;
-
-    @Mock
-    private HttpServletRequest request;
-
-    @Mock
-    private Model model;
+    private HttpServletResponse response;
 
     @InjectMocks
-    private FileUploadController fileUploadController;
+    private ReportController reportController;
+
+    private List<Report> mockReports;
+    private ByteArrayOutputStream outputStream;
 
     @Before
-    public void setUp() {
-        when(session.getAttribute("IS_EXCEPTION")).thenReturn("N");
+    public void setUp() throws IOException {
+        // Prepare mock data
+        Report report1 = new Report();
+        report1.setUuid("uuid1");
+        report1.setReport("Report Content 1".getBytes());
+
+        Report report2 = new Report();
+        report2.setUuid("uuid2");
+        report2.setReport("Report Content 2".getBytes());
+
+        mockReports = Arrays.asList(report1, report2);
+
+        // Mocking response output stream
+        outputStream = new ByteArrayOutputStream();
+        when(response.getOutputStream()).thenReturn(new MockServletOutputStream(outputStream));
+
+        // Mocking report service
+        when(reportService.getReport()).thenReturn(mockReports);
     }
 
     @Test
-    public void testUploadFile_Success() throws Exception {
-        // Arrange
-        MultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "test content".getBytes());
-
-        UploaderResponse mockUploaderResponse = new UploaderResponse();
-        mockUploaderResponse.setResponseCode(UploaderResponseCode.OK);
-
-        when(fileuploadService.saveFileDataInDB(any(MultipartFile.class))).thenReturn(mockUploaderResponse);
-        when(uploadConfigurationService.getConfigValue("API")).thenReturn("N");
-
+    public void testDownloadFile_Success() throws IOException {
         // Act
-        ResponseEntity<UploaderResponse> responseEntity = fileUploadController.uploadFile(file, request, model);
+        reportController.downloadFile(response, "type", false);
 
         // Assert
-        assertNotNull(responseEntity);
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        verify(serviceFlow, times(1)).process();
+        verify(response).setStatus(HttpServletResponse.SC_OK);
+        verify(response).addHeader(eq("Content-Disposition"), eq("attachment; filename=\"automationReport.zip\""));
+        verify(response).setContentType("application/zip");
+
+        // Verify content written to the output stream
+        ZipOutputStream zipInputStream = new ZipOutputStream(outputStream);
+        zipInputStream.close();
+
+        byte[] writtenBytes = outputStream.toByteArray();
+        assertTrue(writtenBytes.length > 0);
+
+        // Verify no deletion called
+        verify(reportService, never()).delete(anyString());
     }
 
     @Test
-    public void testUploadFile_InternalServerError() throws Exception {
-        // Arrange
-        MultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "test content".getBytes());
-
-        UploaderResponse mockUploaderResponse = new UploaderResponse();
-        mockUploaderResponse.setResponseCode(UploaderResponseCode.INTERNAL_SERVER_ERROR);
-
-        when(fileuploadService.saveFileDataInDB(any(MultipartFile.class))).thenReturn(mockUploaderResponse);
-        when(uploadConfigurationService.getConfigValue("API")).thenReturn("N");
-
+    public void testDownloadFile_SuccessWithDelete() throws IOException {
         // Act
-        ResponseEntity<UploaderResponse> responseEntity = fileUploadController.uploadFile(file, request, model);
+        reportController.downloadFile(response, "type", true);
 
         // Assert
-        assertNotNull(responseEntity);
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, responseEntity.getStatusCode());
-        verify(serviceFlow, times(0)).process();
+        verify(response).setStatus(HttpServletResponse.SC_OK);
+        verify(response).addHeader(eq("Content-Disposition"), eq("attachment; filename=\"automationReport.zip\""));
+        verify(response).setContentType("application/zip");
+
+        // Verify content written to the output stream
+        ZipOutputStream zipInputStream = new ZipOutputStream(outputStream);
+        zipInputStream.close();
+
+        byte[] writtenBytes = outputStream.toByteArray();
+        assertTrue(writtenBytes.length > 0);
+
+        // Verify deletion was called
+        verify(reportService, times(1)).delete("type");
     }
 
     @Test
-    public void testUploadFile_InvalidLogin() throws Exception {
+    public void testDownloadFile_ExceptionHandling() throws IOException {
         // Arrange
-        MultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "test content".getBytes());
-
-        // Simulate login failure
-        when(session.getAttribute("IS_EXCEPTION")).thenReturn("Y");
+        doThrow(new IOException("Test Exception")).when(response).getOutputStream();
 
         // Act
-        ResponseEntity<UploaderResponse> responseEntity = fileUploadController.uploadFile(file, request, model);
+        reportController.downloadFile(response, "type", false);
 
         // Assert
-        assertNull(responseEntity);
-        verify(serviceFlow, times(0)).process();
-        verify(session).setAttribute("PROCESS_RESPONSE", "Invalid login Credentials");
+        verify(response).setStatus(HttpServletResponse.SC_OK);
+        verify(response).addHeader(eq("Content-Disposition"), eq("attachment; filename=\"automationReport.zip\""));
+        verify(response, never()).flushBuffer();
+    }
+}
+
+// Mock implementation of ServletOutputStream to capture written data
+class MockServletOutputStream extends javax.servlet.ServletOutputStream {
+
+    private ByteArrayOutputStream outputStream;
+
+    public MockServletOutputStream(ByteArrayOutputStream outputStream) {
+        this.outputStream = outputStream;
     }
 
-    @Test
-    public void testUploadFile_Exception() throws Exception {
-        // Arrange
-        MultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "test content".getBytes());
+    @Override
+    public void write(int b) throws IOException {
+        outputStream.write(b);
+    }
 
-        when(fileuploadService.saveFileDataInDB(any(MultipartFile.class))).thenThrow(new RuntimeException("Error"));
+    @Override
+    public boolean isReady() {
+        return true;
+    }
 
-        // Act
-        ResponseEntity<UploaderResponse> responseEntity = fileUploadController.uploadFile(file, request, model);
-
-        // Assert
-        assertNull(responseEntity);
-        verify(session).setAttribute(eq("PROCESS_RESPONSE"), anyString());
-        verify(model).addAttribute(eq("message"), anyString());
+    @Override
+    public void setWriteListener(javax.servlet.WriteListener writeListener) {
+        // Not implemented for the mock
     }
 }
