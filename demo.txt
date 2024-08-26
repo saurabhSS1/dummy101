@@ -1,10 +1,11 @@
- @Test
-    public void testFetchData_WithValidInputs_ReturnsProcessedData() throws Exception {
-        String queryId = "validQueryId";
+@Test
+    public void testFetchData_SuccessfulResponse_ReturnsProcessedData() throws Exception {
+        String queryId = "resourcetype";
         String queryData = "validQueryData";
         String baseUri = "http://example.com";
         BasicHeader outHeader = new BasicHeader("headerName", "headerValue");
-        String expectedProcessedData = "processedData";
+        String responseJson = "{\"totalSize\": 1, \"records\": [{\"Id\": \"123\", \"SobjectType\": \"TestType\"}]}";
+        String expectedProcessedData = "123TestType1";
 
         // Mocking session attributes
         when(session.getAttribute("BASE_URL")).thenReturn(baseUri);
@@ -14,16 +15,24 @@
         HttpGet mockHttpGet = new HttpGet(baseUri + "?" + queryData);
         when(httpUtility.getHttpGet(queryData, baseUri, outHeader, Constants.PRINT_HEADER)).thenReturn(mockHttpGet);
 
-        // Mocking HttpClient execution
+        // Mocking HttpClient execution to return the mocked response
         when(httpClient.execute(mockHttpGet)).thenReturn(response);
 
-        // Mocking the processfetchDataResponse method
-        when(restService.processfetchDataResponse(queryId, response)).thenReturn(expectedProcessedData);
+        // Mocking HttpResponse and StatusLine
+        when(response.getStatusLine()).thenReturn(statusLine);
+        when(statusLine.getStatusCode()).thenReturn(200);
+
+        // Mocking HttpEntity and its content
+        when(response.getEntity()).thenReturn(httpEntity);
+        when(EntityUtils.toString(httpEntity)).thenReturn(responseJson);
 
         // Act
         String result = restService.fetchData(queryId, queryData);
 
         // Assert
         assertEquals(expectedProcessedData, result);
-        verify(LOGGER).info("RestService->fetchData->Start");
+        verify(session).getAttribute("BASE_URL");
+        verify(session).getAttribute("OUT_HEADER");
+        verify(httpUtility).getHttpGet(queryData, baseUri, outHeader, Constants.PRINT_HEADER);
+        verify(httpClient).execute(mockHttpGet);
     }
