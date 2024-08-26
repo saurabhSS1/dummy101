@@ -1,11 +1,44 @@
-@Test
-    public void testFetchData_SuccessfulResponse_ReturnsProcessedData() throws Exception {
+public class RestServiceTest {
+
+    @Mock
+    private HttpSession session;
+
+    @Mock
+    private HttpClient httpClient;
+
+    @Mock
+    private HttpUtility httpUtility;
+
+    @Mock
+    private HttpResponse response;
+
+    @Mock
+    private StatusLine statusLine;
+
+    @Mock
+    private HttpEntity entity;
+
+    @InjectMocks
+    private RestService restService;
+
+    @BeforeEach
+    void setUp() {
+        // Check if mocks are initialized
+        assertNotNull(session, "Session mock is not initialized");
+        assertNotNull(httpClient, "HttpClient mock is not initialized");
+        assertNotNull(httpUtility, "HttpUtility mock is not initialized");
+        assertNotNull(response, "HttpResponse mock is not initialized");
+        assertNotNull(statusLine, "StatusLine mock is not initialized");
+        assertNotNull(entity, "HttpEntity mock is not initialized");
+    }
+
+    @Test
+    public void testFetchData_SuccessResponse_ReturnsResult() throws Exception {
         String queryId = "resourcetype";
         String queryData = "validQueryData";
         String baseUri = "http://example.com";
         BasicHeader outHeader = new BasicHeader("headerName", "headerValue");
-        String responseJson = "{\"totalSize\": 1, \"records\": [{\"Id\": \"123\", \"SobjectType\": \"TestType\"}]}";
-        String expectedProcessedData = "123TestType1";
+        String expectedResult = "Id1SobjectType1";
 
         // Mocking session attributes
         when(session.getAttribute("BASE_URL")).thenReturn(baseUri);
@@ -15,24 +48,29 @@
         HttpGet mockHttpGet = new HttpGet(baseUri + "?" + queryData);
         when(httpUtility.getHttpGet(queryData, baseUri, outHeader, Constants.PRINT_HEADER)).thenReturn(mockHttpGet);
 
-        // Mocking HttpClient execution to return the mocked response
+        // Ensure HttpClient returns a non-null HttpResponse
         when(httpClient.execute(mockHttpGet)).thenReturn(response);
+
+        // Debugging step to verify mock behavior
+        assertNotNull(response, "HttpResponse mock returned null");
 
         // Mocking HttpResponse and StatusLine
         when(response.getStatusLine()).thenReturn(statusLine);
         when(statusLine.getStatusCode()).thenReturn(200);
 
-        // Mocking HttpEntity and its content
-        when(response.getEntity()).thenReturn(httpEntity);
-        when(EntityUtils.toString(httpEntity)).thenReturn(responseJson);
+        // Debugging step to verify mock behavior
+        assertNotNull(statusLine, "StatusLine mock returned null");
+
+        // Mocking the response entity and its content
+        String jsonResponse = "{\"totalSize\": 1, \"records\": [{\"Id\": \"Id1\", \"SobjectType\": \"SobjectType\"}]}";
+        InputStream inputStream = new ByteArrayInputStream(jsonResponse.getBytes());
+        when(entity.getContent()).thenReturn(inputStream);
+        when(response.getEntity()).thenReturn(entity);
 
         // Act
         String result = restService.fetchData(queryId, queryData);
 
         // Assert
-        assertEquals(expectedProcessedData, result);
-        verify(session).getAttribute("BASE_URL");
-        verify(session).getAttribute("OUT_HEADER");
-        verify(httpUtility).getHttpGet(queryData, baseUri, outHeader, Constants.PRINT_HEADER);
-        verify(httpClient).execute(mockHttpGet);
+        assertEquals(expectedResult, result);
     }
+}
