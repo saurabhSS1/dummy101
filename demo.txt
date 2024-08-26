@@ -1,8 +1,29 @@
-public class UserService implements IUserService {
-private final static Logger LOGGER = LoggerFactory .getLogger(UserService.class);
-@Autowired
-private JdbcTemplate template;
-@Autowired
-private Environment environment;
-@Autowired
-private IUserDao userDao;
+ @Test
+    public void testFetchData_WithValidInputs_ReturnsProcessedData() throws Exception {
+        String queryId = "validQueryId";
+        String queryData = "validQueryData";
+        String baseUri = "http://example.com";
+        BasicHeader outHeader = new BasicHeader("headerName", "headerValue");
+        String expectedProcessedData = "processedData";
+
+        // Mocking session attributes
+        when(session.getAttribute("BASE_URL")).thenReturn(baseUri);
+        when(session.getAttribute("OUT_HEADER")).thenReturn(outHeader);
+
+        // Mocking HttpGet creation
+        HttpGet mockHttpGet = new HttpGet(baseUri + "?" + queryData);
+        when(httpUtility.getHttpGet(queryData, baseUri, outHeader, Constants.PRINT_HEADER)).thenReturn(mockHttpGet);
+
+        // Mocking HttpClient execution
+        when(httpClient.execute(mockHttpGet)).thenReturn(response);
+
+        // Mocking the processfetchDataResponse method
+        when(restService.processfetchDataResponse(queryId, response)).thenReturn(expectedProcessedData);
+
+        // Act
+        String result = restService.fetchData(queryId, queryData);
+
+        // Assert
+        assertEquals(expectedProcessedData, result);
+        verify(LOGGER).info("RestService->fetchData->Start");
+    }
