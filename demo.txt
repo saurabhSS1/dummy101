@@ -1,139 +1,42 @@
-import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import javax.servlet.http.HttpServletResponse;
-
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.batch.item.ItemWriter;
+import java.util.Arrays;
+import java.util.List;
 
-@RunWith(MockitoJUnitRunner.class)
-public class ReportControllerTest {
+public class NoOpItemWriterTest {
 
-    @Mock
-    private IReportService reportService;
-
-    @Mock
-    private HttpServletResponse response;
-
-    @InjectMocks
-    private ReportController reportController;
-
-    private List<Report> mockReports;
-    private ByteArrayOutputStream outputStream;
+    private ItemWriter<Sfdc0bjectEnvelope> itemWriter;
 
     @Before
-    public void setUp() throws IOException {
-        // Prepare mock data
-        Report report1 = new Report();
-        report1.setUuid("uuid1");
-        report1.setReport("Report Content 1".getBytes());
-
-        Report report2 = new Report();
-        report2.setUuid("uuid2");
-        report2.setReport("Report Content 2".getBytes());
-
-        mockReports = Arrays.asList(report1, report2);
-
-        // Mocking response output stream
-        outputStream = new ByteArrayOutputStream();
-        when(response.getOutputStream()).thenReturn(new MockServletOutputStream(outputStream));
-
-        // Mocking report service
-        when(reportService.getReport()).thenReturn(mockReports);
+    public void setUp() {
+        itemWriter = new NoOpItemWriter();
     }
 
     @Test
-    public void testDownloadFile_Success() throws IOException {
-        // Act
-        reportController.downloadFile(response, "type", false);
-
-        // Assert
-        verify(response).setStatus(HttpServletResponse.SC_OK);
-        verify(response).addHeader(eq("Content-Disposition"), eq("attachment; filename=\"automationReport.zip\""));
-        verify(response).setContentType("application/zip");
-
-        // Verify content written to the output stream
-        ZipOutputStream zipInputStream = new ZipOutputStream(outputStream);
-        zipInputStream.close();
-
-        byte[] writtenBytes = outputStream.toByteArray();
-        assertTrue(writtenBytes.length > 0);
-
-        // Verify no deletion called
-        verify(reportService, never()).delete(anyString());
-    }
-
-    @Test
-    public void testDownloadFile_SuccessWithDelete() throws IOException {
-        // Act
-        reportController.downloadFile(response, "type", true);
-
-        // Assert
-        verify(response).setStatus(HttpServletResponse.SC_OK);
-        verify(response).addHeader(eq("Content-Disposition"), eq("attachment; filename=\"automationReport.zip\""));
-        verify(response).setContentType("application/zip");
-
-        // Verify content written to the output stream
-        ZipOutputStream zipInputStream = new ZipOutputStream(outputStream);
-        zipInputStream.close();
-
-        byte[] writtenBytes = outputStream.toByteArray();
-        assertTrue(writtenBytes.length > 0);
-
-        // Verify deletion was called
-        verify(reportService, times(1)).delete("type");
-    }
-
-    @Test
-    public void testDownloadFile_ExceptionHandling() throws IOException {
+    public void testWrite_WithEmptyList() throws Exception {
         // Arrange
-        doThrow(new IOException("Test Exception")).when(response).getOutputStream();
+        List<Sfdc0bjectEnvelope> emptyList = Arrays.asList();
 
         // Act
-        reportController.downloadFile(response, "type", false);
+        itemWriter.write(emptyList);
 
         // Assert
-        verify(response).setStatus(HttpServletResponse.SC_OK);
-        verify(response).addHeader(eq("Content-Disposition"), eq("attachment; filename=\"automationReport.zip\""));
-        verify(response, never()).flushBuffer();
-    }
-}
-
-// Mock implementation of ServletOutputStream to capture written data
-class MockServletOutputStream extends javax.servlet.ServletOutputStream {
-
-    private ByteArrayOutputStream outputStream;
-
-    public MockServletOutputStream(ByteArrayOutputStream outputStream) {
-        this.outputStream = outputStream;
+        // No exceptions should be thrown, and nothing should be asserted for a no-op
     }
 
-    @Override
-    public void write(int b) throws IOException {
-        outputStream.write(b);
-    }
+    @Test
+    public void testWrite_WithNonEmptyList() throws Exception {
+        // Arrange
+        Sfdc0bjectEnvelope envelope1 = new Sfdc0bjectEnvelope(); // Assuming Sfdc0bjectEnvelope has a default constructor
+        Sfdc0bjectEnvelope envelope2 = new Sfdc0bjectEnvelope();
+        List<Sfdc0bjectEnvelope> items = Arrays.asList(envelope1, envelope2);
 
-    @Override
-    public boolean isReady() {
-        return true;
-    }
+        // Act
+        itemWriter.write(items);
 
-    @Override
-    public void setWriteListener(javax.servlet.WriteListener writeListener) {
-        // Not implemented for the mock
+        // Assert
+        // No exceptions should be thrown, and nothing should be asserted for a no-op
     }
 }
