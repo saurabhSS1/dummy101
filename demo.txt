@@ -1,19 +1,22 @@
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.runners.MockitoJUnitRunner;
 import javax.servlet.http.HttpSession;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.io.IOException;
 
-public class YourClassTest {
+@RunWith(MockitoJUnitRunner.class)
+public class MyServiceTest {
 
     @Mock
     private FlowService flowService;
@@ -25,16 +28,17 @@ public class YourClassTest {
     private ApplicationContext applicationContext;
 
     @Mock
-    private PdfWriter pdfWriter;
-
-    @Mock
     private ReportDao reportDao;
 
-    @Mock
-    private Environment environment;
-
     @InjectMocks
-    private YourClass yourClass; // The class containing the process() method
+    private MyService myService;
+
+    private static final String UUID_KEY = "UUID_KEY";
+    private static final String REPORT_KEY_LIST = "REPORT_KEY_LIST";
+    private static final String PROCESS_RESPONSE = "PROCESS_RESPONSE";
+    private static final String PROCESS_COMPLETED = "PROCESS_COMPLETED";
+    private static final String REPORT_WRITER = "REPORT_WRITER";
+    private static final String FILE_TYPE_PDF = "pdf";
 
     @Before
     public void setUp() {
@@ -42,55 +46,53 @@ public class YourClassTest {
     }
 
     @Test
-    public void testProcess() throws Exception {
-        // Mocking flowService.process() to return a list of OperationConfigDTOs
+    public void testProcessSuccess() throws Exception {
+        // Mock dependencies
         List<OperationConfigDTO> operationConfigList = new ArrayList<>();
         OperationConfigDTO operationConfigDTO = new OperationConfigDTO();
-        operationConfigDTO.setClassName("TestService");
-        operationConfigDTO.setOperationName("testOperation");
+        operationConfigDTO.setClassName("SomeServiceClass");
+        operationConfigDTO.setOperationName("someOperation");
+        operationConfigDTO.setsObjectName("someObject");
         operationConfigList.add(operationConfigDTO);
+
         when(flowService.process()).thenReturn(operationConfigList);
+        when(session.getAttribute(UUID_KEY)).thenReturn("123,456");
+        when(session.getAttribute(PROCESS_COMPLETED)).thenReturn(0);
+        when(session.getAttribute(PROCESS_RESPONSE)).thenReturn("");
 
-        // Mocking session.getAttribute()
-        String uuidList = "uuid1,uuid2";
-        when(session.getAttribute("UUID_KEY")).thenReturn(uuidList);
-        when(session.getAttribute("REPORT_WRITER")).thenReturn(pdfWriter);
+        Object serviceInstance = mock(SomeServiceClass.class);
+        when(applicationContext.getBean("SomeServiceClass")).thenReturn(serviceInstance);
+        Method method = serviceInstance.getClass().getDeclaredMethod("someOperation", String.class, String.class);
+        doNothing().when(serviceInstance).someOperation(anyString(), anyString());
 
-        // Mocking applicationContext.getBean()
-        Object mockServiceInstance = mock(Object.class);
-        when(applicationContext.getBean("TestService")).thenReturn(mockServiceInstance);
+        // Mocking file system and PDF writer
+        Path mockPath = Paths.get("mockPath");
+        Files.write(mockPath, "mock data".getBytes());
 
-        // Mocking Utility.getReportFilePath() and Files.readAllBytes()
-        String reportFilePath = "report.pdf";
-        when(Utility.getReportFilePath(session, environment, "PDF")).thenReturn(reportFilePath);
-        byte[] fileData = new byte[] { 0x1, 0x2, 0x3 }; // Mocking file content
-        when(Files.readAllBytes(any(Path.class))).thenReturn(fileData);
+        PdfWriter mockPdfWriter = mock(PdfWriter.class);
+        when(session.getAttribute(REPORT_WRITER)).thenReturn(mockPdfWriter);
 
-        // Mocking reportDao.write()
-        doNothing().when(reportDao).write(any(byte[].class), any(String.class));
+        // Call the process method
+        String result = myService.process();
 
-        // Mocking other session attributes
-        when(session.getAttribute("PROCESS_RESPONSE")).thenReturn(null);
-        when(session.getAttribute("PROCESS_COMPLETED")).thenReturn(0);
-
-        // Invoke the process() method
-        String result = yourClass.process();
-
-        // Asserting result is success
+        // Verify the flow
+        verify(flowService, times(1)).process();
+        verify(session, times(1)).setAttribute(eq(PROCESS_COMPLETED), anyInt());
+        verify(reportDao, times(1)).write(any(byte[].class), anyString());
+        verify(mockPdfWriter, times(1)).write();
         assertEquals("Success", result);
+    }
 
-        // Verify interactions with mocked objects
-        verify(flowService).process();
-        verify(session).setAttribute(eq("REPORT_KEY_LIST"), anyString());
-        verify(session, atLeastOnce()).getAttribute("UUID_KEY");
-        verify(applicationContext).getBean("TestService");
+    @Test
+    public void testGetUUIDList() {
+        // Test getUUIDList for a comma-separated UUID string
+        String uuidList = "123,456,789";
+        List<String> uuids = myService.getUUIDList(uuidList);
 
-        // Verifying that the method write() was called on pdfWriter
-        verify(pdfWriter).write();
-
-        // Verifying file writing in reportDao
-        verify(reportDao).write(fileData, "uuid1-" + System.currentTimeMillis());
-
-        // Additional verifications can be added as needed
+        // Validate the result
+        assertEquals(3, uuids.size());
+        assertTrue(uuids.contains("123"));
+        assertTrue(uuids.contains("456"));
+        assertTrue(uuids.contains("789"));
     }
 }
