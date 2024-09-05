@@ -1,6 +1,13 @@
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -8,12 +15,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
+
 import javax.servlet.http.HttpSession;
-import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class MyServiceTest {
@@ -30,24 +33,28 @@ public class MyServiceTest {
     @Mock
     private ReportDao reportDao;
 
+    @Mock
+    private PdfWriter pdfWriter;
+
     @InjectMocks
-    private MyService myService;
+    private MyService myService; // Assuming the process method is part of MyService
 
     private static final String UUID_KEY = "UUID_KEY";
     private static final String REPORT_KEY_LIST = "REPORT_KEY_LIST";
+    private static final String REPORT_KEY = "REPORT_KEY";
     private static final String PROCESS_RESPONSE = "PROCESS_RESPONSE";
     private static final String PROCESS_COMPLETED = "PROCESS_COMPLETED";
     private static final String REPORT_WRITER = "REPORT_WRITER";
     private static final String FILE_TYPE_PDF = "pdf";
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
     }
 
     @Test
     public void testProcessSuccess() throws Exception {
-        // Mock dependencies
+        // Step 1: Mock the operation configuration list
         List<OperationConfigDTO> operationConfigList = new ArrayList<>();
         OperationConfigDTO operationConfigDTO = new OperationConfigDTO();
         operationConfigDTO.setClassName("SomeServiceClass");
@@ -56,36 +63,48 @@ public class MyServiceTest {
         operationConfigList.add(operationConfigDTO);
 
         when(flowService.process()).thenReturn(operationConfigList);
-        when(session.getAttribute(UUID_KEY)).thenReturn("123,456");
-        when(session.getAttribute(PROCESS_COMPLETED)).thenReturn(0);
-        when(session.getAttribute(PROCESS_RESPONSE)).thenReturn("");
 
+        // Step 2: Mock session attributes for UUID and others
+        String uuidList = "123,456";
+        when(session.getAttribute(UUID_KEY)).thenReturn(uuidList);
+        when(session.getAttribute(REPORT_KEY_LIST)).thenReturn("");
+        when(session.getAttribute(PROCESS_RESPONSE)).thenReturn("");
+        when(session.getAttribute(PROCESS_COMPLETED)).thenReturn(0);
+        when(session.getAttribute(REPORT_WRITER)).thenReturn(pdfWriter);
+
+        // Step 3: Mock ApplicationContext and the service method invocation
         Object serviceInstance = mock(SomeServiceClass.class);
         when(applicationContext.getBean("SomeServiceClass")).thenReturn(serviceInstance);
+
+        // Mock method invocation on the service instance
         Method method = serviceInstance.getClass().getDeclaredMethod("someOperation", String.class, String.class);
         doNothing().when(serviceInstance).someOperation(anyString(), anyString());
 
-        // Mocking file system and PDF writer
+        // Step 4: Mock file operations
         Path mockPath = Paths.get("mockPath");
-        Files.write(mockPath, "mock data".getBytes());
+        when(Files.readAllBytes(mockPath)).thenReturn("mock data".getBytes());
 
-        PdfWriter mockPdfWriter = mock(PdfWriter.class);
-        when(session.getAttribute(REPORT_WRITER)).thenReturn(mockPdfWriter);
+        // Step 5: Mock the reportDao write method
+        doNothing().when(reportDao).write(any(byte[].class), anyString());
 
-        // Call the process method
+        // Step 6: Execute the process method and verify the results
         String result = myService.process();
 
-        // Verify the flow
+        // Step 7: Verify the interactions with mocks
         verify(flowService, times(1)).process();
-        verify(session, times(1)).setAttribute(eq(PROCESS_COMPLETED), anyInt());
+        verify(session, times(1)).setAttribute(eq(REPORT_KEY_LIST), anyString());
+        verify(session, times(1)).setAttribute(eq(PROCESS_RESPONSE), anyString());
         verify(reportDao, times(1)).write(any(byte[].class), anyString());
-        verify(mockPdfWriter, times(1)).write();
+        verify(pdfWriter, times(1)).write();
+        verify(session, times(1)).removeAttribute(REPORT_WRITER);
+
+        // Assert the return value
         assertEquals("Success", result);
     }
 
     @Test
     public void testGetUUIDList() {
-        // Test getUUIDList for a comma-separated UUID string
+        // Test getUUIDList for comma-separated UUID string
         String uuidList = "123,456,789";
         List<String> uuids = myService.getUUIDList(uuidList);
 
@@ -94,5 +113,16 @@ public class MyServiceTest {
         assertTrue(uuids.contains("123"));
         assertTrue(uuids.contains("456"));
         assertTrue(uuids.contains("789"));
+    }
+
+    @Test
+    public void testGetUUIDListWithSingleUUID() {
+        // Test getUUIDList for a single UUID string
+        String uuidList = "123";
+        List<String> uuids = myService.getUUIDList(uuidList);
+
+        // Validate the result
+        assertEquals(1, uuids.size());
+        assertTrue(uuids.contains("123"));
     }
 }
