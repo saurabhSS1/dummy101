@@ -1,51 +1,27 @@
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.runners.MockitoJUnitRunner;
 
 import javax.servlet.http.HttpSession;
 
-@RunWith(MockitoJUnitRunner.class)
 public class MyServiceTest {
-
-    @Mock
-    private FlowService flowService;
 
     @Mock
     private HttpSession session;
 
     @Mock
-    private ApplicationContext applicationContext;
-
-    @Mock
-    private ReportDao reportDao;
-
-    @Mock
-    private PdfWriter pdfWriter;
+    private UploadConfigurationService uploadConfigurationService;
 
     @InjectMocks
     private MyService myService; // Assuming the process method is part of MyService
-
-    private static final String UUID_KEY = "UUID_KEY";
-    private static final String REPORT_KEY_LIST = "REPORT_KEY_LIST";
-    private static final String REPORT_KEY = "REPORT_KEY";
-    private static final String PROCESS_RESPONSE = "PROCESS_RESPONSE";
-    private static final String PROCESS_COMPLETED = "PROCESS_COMPLETED";
-    private static final String REPORT_WRITER = "REPORT_WRITER";
-    private static final String FILE_TYPE_PDF = "pdf";
 
     @Before
     public void setUp() throws Exception {
@@ -53,76 +29,65 @@ public class MyServiceTest {
     }
 
     @Test
-    public void testProcessSuccess() throws Exception {
-        // Step 1: Mock the operation configuration list
-        List<OperationConfigDTO> operationConfigList = new ArrayList<>();
-        OperationConfigDTO operationConfigDTO = new OperationConfigDTO();
-        operationConfigDTO.setClassName("SomeServiceClass");
-        operationConfigDTO.setOperationName("someOperation");
-        operationConfigDTO.setsObjectName("someObject");
-        operationConfigList.add(operationConfigDTO);
+    public void testProcessWithAPI() throws Exception {
+        // Step 1: Prepare mock JSON data
+        String jsonData = "[{\"merchantId\":\"123\", \"name\":\"Test Merchant\"}]";
+        InputStream inputStream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(flowService.process()).thenReturn(operationConfigList);
+        // Step 2: Mock the API call setting
+        when(uploadConfigurationService.getConfigValue("API")).thenReturn("Y");
 
-        // Step 2: Mock session attributes for UUID and others
-        String uuidList = "123,456";
-        when(session.getAttribute(UUID_KEY)).thenReturn(uuidList);
-        when(session.getAttribute(REPORT_KEY_LIST)).thenReturn("");
-        when(session.getAttribute(PROCESS_RESPONSE)).thenReturn("");
-        when(session.getAttribute(PROCESS_COMPLETED)).thenReturn(0);
-        when(session.getAttribute(REPORT_WRITER)).thenReturn(pdfWriter);
+        // Step 3: Mock session attributes
+        when(session.getAttribute("TOTAL_PROCESSES")).thenReturn(0);
+        doNothing().when(session).setAttribute(eq("TOTAL_PROCESSES"), anyInt());
+        doNothing().when(session).setAttribute(eq("PROCESS_RESPONSE"), anyString());
 
-        // Step 3: Mock ApplicationContext and the service method invocation
-        Object serviceInstance = mock(SomeServiceClass.class);
-        when(applicationContext.getBean("SomeServiceClass")).thenReturn(serviceInstance);
+        // Step 4: Mock saveApplicationByAPI method
+        String apiResponse = "API call successful";
+        doReturn(apiResponse).when(myService).saveApplicationByAPI(anyString());
 
-        // Mock method invocation on the service instance
-        Method method = serviceInstance.getClass().getDeclaredMethod("someOperation", String.class, String.class);
-        doNothing().when(serviceInstance).someOperation(anyString(), anyString());
+        // Step 5: Execute the process method
+        String result = myService.process(inputStream);
 
-        // Step 4: Mock file operations
-        Path mockPath = Paths.get("mockPath");
-        when(Files.readAllBytes(mockPath)).thenReturn("mock data".getBytes());
+        // Step 6: Verify the method calls
+        verify(session, times(1)).setAttribute("TOTAL_PROCESSES", 1);
+        verify(session, times(1)).setAttribute("PROCESS_RESPONSE", "JSON file Processed. Please see log for details: \n" + apiResponse);
 
-        // Step 5: Mock the reportDao write method
-        doNothing().when(reportDao).write(any(byte[].class), anyString());
-
-        // Step 6: Execute the process method and verify the results
-        String result = myService.process();
-
-        // Step 7: Verify the interactions with mocks
-        verify(flowService, times(1)).process();
-        verify(session, times(1)).setAttribute(eq(REPORT_KEY_LIST), anyString());
-        verify(session, times(1)).setAttribute(eq(PROCESS_RESPONSE), anyString());
-        verify(reportDao, times(1)).write(any(byte[].class), anyString());
-        verify(pdfWriter, times(1)).write();
-        verify(session, times(1)).removeAttribute(REPORT_WRITER);
-
-        // Assert the return value
-        assertEquals("Success", result);
+        // Step 7: Assert the return value
+        assertEquals(apiResponse, result);
     }
 
     @Test
-    public void testGetUUIDList() {
-        // Test getUUIDList for comma-separated UUID string
-        String uuidList = "123,456,789";
-        List<String> uuids = myService.getUUIDList(uuidList);
+    public void testProcessWithoutAPI() throws Exception {
+        // Step 1: Prepare mock JSON data
+        String jsonData = "[{\"merchantId\":\"123\", \"name\":\"Test Merchant\"}]";
+        InputStream inputStream = new ByteArrayInputStream(jsonData.getBytes());
 
-        // Validate the result
-        assertEquals(3, uuids.size());
-        assertTrue(uuids.contains("123"));
-        assertTrue(uuids.contains("456"));
-        assertTrue(uuids.contains("789"));
-    }
+        // Step 2: Mock the API call setting (API is off)
+        when(uploadConfigurationService.getConfigValue("API")).thenReturn("N");
 
-    @Test
-    public void testGetUUIDListWithSingleUUID() {
-        // Test getUUIDList for a single UUID string
-        String uuidList = "123";
-        List<String> uuids = myService.getUUIDList(uuidList);
+        // Step 3: Mock session attributes
+        when(session.getAttribute("TOTAL_PROCESSES")).thenReturn(0);
+        doNothing().when(session).setAttribute(eq("TOTAL_PROCESSES"), anyInt());
+        doNothing().when(session).setAttribute(eq("PROCESS_RESPONSE"), anyString());
 
-        // Validate the result
-        assertEquals(1, uuids.size());
-        assertTrue(uuids.contains("123"));
+        // Step 4: Mock other method calls (local processing)
+        doNothing().when(myService).mapSchemesToIndividualSchemeFlag(any(MerchantInformation[].class));
+        doNothing().when(myService).validateJsonApplicationData(any(MerchantInformation[].class));
+        doNothing().when(myService).saveApplication(any(MerchantInformation[].class));
+
+        // Step 5: Execute the process method
+        String result = myService.process(inputStream);
+
+        // Step 6: Verify the method calls for local processing
+        verify(myService, times(1)).mapSchemesToIndividualSchemeFlag(any(MerchantInformation[].class));
+        verify(myService, times(1)).validateJsonApplicationData(any(MerchantInformation[].class));
+        verify(myService, times(1)).saveApplication(any(MerchantInformation[].class));
+
+        // Verify session attribute updates
+        verify(session, times(1)).setAttribute("PROCESS_RESPONSE", "JSON Processed successfully!");
+
+        // Step 7: Assert the return value (empty because we don't modify the data string in local processing)
+        assertEquals("", result);
     }
 }
