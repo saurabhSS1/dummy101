@@ -1,42 +1,96 @@
+import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
-import org.springframework.batch.item.ItemWriter;
-import java.util.Arrays;
-import java.util.List;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import javax.servlet.http.HttpSession;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.io.IOException;
 
-public class NoOpItemWriterTest {
+public class YourClassTest {
 
-    private ItemWriter<Sfdc0bjectEnvelope> itemWriter;
+    @Mock
+    private FlowService flowService;
+
+    @Mock
+    private HttpSession session;
+
+    @Mock
+    private ApplicationContext applicationContext;
+
+    @Mock
+    private PdfWriter pdfWriter;
+
+    @Mock
+    private ReportDao reportDao;
+
+    @Mock
+    private Environment environment;
+
+    @InjectMocks
+    private YourClass yourClass; // The class containing the process() method
 
     @Before
     public void setUp() {
-        itemWriter = new NoOpItemWriter();
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
-    public void testWrite_WithEmptyList() throws Exception {
-        // Arrange
-        List<Sfdc0bjectEnvelope> emptyList = Arrays.asList();
+    public void testProcess() throws Exception {
+        // Mocking flowService.process() to return a list of OperationConfigDTOs
+        List<OperationConfigDTO> operationConfigList = new ArrayList<>();
+        OperationConfigDTO operationConfigDTO = new OperationConfigDTO();
+        operationConfigDTO.setClassName("TestService");
+        operationConfigDTO.setOperationName("testOperation");
+        operationConfigList.add(operationConfigDTO);
+        when(flowService.process()).thenReturn(operationConfigList);
 
-        // Act
-        itemWriter.write(emptyList);
+        // Mocking session.getAttribute()
+        String uuidList = "uuid1,uuid2";
+        when(session.getAttribute("UUID_KEY")).thenReturn(uuidList);
+        when(session.getAttribute("REPORT_WRITER")).thenReturn(pdfWriter);
 
-        // Assert
-        // No exceptions should be thrown, and nothing should be asserted for a no-op
-    }
+        // Mocking applicationContext.getBean()
+        Object mockServiceInstance = mock(Object.class);
+        when(applicationContext.getBean("TestService")).thenReturn(mockServiceInstance);
 
-    @Test
-    public void testWrite_WithNonEmptyList() throws Exception {
-        // Arrange
-        Sfdc0bjectEnvelope envelope1 = new Sfdc0bjectEnvelope(); // Assuming Sfdc0bjectEnvelope has a default constructor
-        Sfdc0bjectEnvelope envelope2 = new Sfdc0bjectEnvelope();
-        List<Sfdc0bjectEnvelope> items = Arrays.asList(envelope1, envelope2);
+        // Mocking Utility.getReportFilePath() and Files.readAllBytes()
+        String reportFilePath = "report.pdf";
+        when(Utility.getReportFilePath(session, environment, "PDF")).thenReturn(reportFilePath);
+        byte[] fileData = new byte[] { 0x1, 0x2, 0x3 }; // Mocking file content
+        when(Files.readAllBytes(any(Path.class))).thenReturn(fileData);
 
-        // Act
-        itemWriter.write(items);
+        // Mocking reportDao.write()
+        doNothing().when(reportDao).write(any(byte[].class), any(String.class));
 
-        // Assert
-        // No exceptions should be thrown, and nothing should be asserted for a no-op
+        // Mocking other session attributes
+        when(session.getAttribute("PROCESS_RESPONSE")).thenReturn(null);
+        when(session.getAttribute("PROCESS_COMPLETED")).thenReturn(0);
+
+        // Invoke the process() method
+        String result = yourClass.process();
+
+        // Asserting result is success
+        assertEquals("Success", result);
+
+        // Verify interactions with mocked objects
+        verify(flowService).process();
+        verify(session).setAttribute(eq("REPORT_KEY_LIST"), anyString());
+        verify(session, atLeastOnce()).getAttribute("UUID_KEY");
+        verify(applicationContext).getBean("TestService");
+
+        // Verifying that the method write() was called on pdfWriter
+        verify(pdfWriter).write();
+
+        // Verifying file writing in reportDao
+        verify(reportDao).write(fileData, "uuid1-" + System.currentTimeMillis());
+
+        // Additional verifications can be added as needed
     }
 }
