@@ -1,12 +1,1 @@
-Subject: Request for Role Transition: Tester to Developer
 
-Dear [VP’s Name],
-
-I hope you’re doing well. I am writing to express my interest in transitioning from my current role as a Tester to a Developer, without any change in my current band. Over time, I’ve gained skills in [mention key relevant skills], and I am eager to leverage them in a development role to contribute more effectively to our team’s goals.
-
-I am confident this transition will align with both my career aspirations and the organization’s objectives. I’d be grateful for the opportunity to discuss this further at your convenience.
-
-Thank you for your time and consideration.
-
-Best regards,
-[Your Full Name]
