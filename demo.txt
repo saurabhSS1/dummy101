@@ -1,143 +1,65 @@
-Here’s a complete set of suspects and clues for all 5 stories to make your office mystery game engaging and ready to play.
+The error java.lang.NoSuchMethodError: <init>(org.apache.logging.slf4j.Log4jLoggerFactory) indicates a conflict between SLF4J and Log4j versions. This typically happens when the versions of SLF4J, Log4j, or their bridges are incompatible or when multiple logging libraries are present.
 
-Story 1: “The Stolen Award”
+Root Cause
+	•	SLF4J is trying to bind to Log4j, but the required method or constructor is missing due to version mismatches.
+	•	This can happen if you have both Log4j and another logging framework (like Logback) or incompatible versions in the classpath.
 
-Story:
+Solution Steps
 
-The Best Employee award disappeared minutes before the ceremony. Four suspects were seen near the award room. Who stole the trophy?
+1. Verify Dependencies
 
-Suspects:
-	1.	Alex (The Overlooked Employee):
-	•	Claims they were in the washroom at the time.
-	•	Has been vocal about deserving the award.
-	2.	Jordan (The Photographer):
-	•	Assigned to take photos of the award.
-	•	Seen sneaking around with a suspicious bag.
-	3.	Taylor (The Event Planner):
-	•	Responsible for setting up the event.
-	•	Was overheard complaining about the budget.
-	4.	Morgan (The Curious Intern):
-	•	Seen peeking into the award room earlier.
-	•	Looked guilty when asked about the trophy.
+Check your build.gradle file and identify all logging dependencies. You may have multiple logging libraries conflicting.
+	•	Use the following Gradle command to list dependencies:
 
-Clues:
-	1.	A gold ribbon was found in Jordan’s bag.
-	2.	Fingerprints on the trophy stand match Taylor.
-	3.	Alex was seen leaving the washroom after the theft occurred.
-	4.	Morgan was holding a “Congratulations, Morgan” note crumpled in their pocket.
+./gradlew dependencies
 
-Solution: Jordan stole the award to take a “fun photo” but panicked and hid it in their bag.
 
-Story 2: “The Coffee Machine Sabotage”
 
-Story:
+Look for slf4j, log4j, or logback dependencies.
 
-The coffee machine was tampered with and broke on a busy day. Four suspects were in the pantry before it stopped working.
+2. Fix Logging Dependency Conflict
 
-Suspects:
-	1.	Alex (The Tea Lover):
-	•	Prefers tea over coffee.
-	•	Claims they were just grabbing sugar.
-	2.	Jordan (The Coffee Addict):
-	•	Known for drinking 5+ cups a day.
-	•	Angry at others hogging the machine.
-	3.	Taylor (The New Health Nut):
-	•	Recently went on a “no caffeine” health kick.
-	•	Preached about how coffee was bad for the team.
-	4.	Morgan (The New Hire):
-	•	Claims they “pressed the wrong button” by accident.
-	•	Was acting nervous when questioned.
+Ensure you include only one logging framework and bridge SLF4J correctly to Log4j.
 
-Clues:
-	1.	A broken coffee capsule was found in the machine.
-	2.	Someone left a sticky note on the machine saying “Try tea, it’s better!”
-	3.	The tea bag drawer was open and missing several bags.
-	4.	Jordan was seen arguing loudly near the pantry earlier that morning.
+For Log4j 2 with SLF4J Integration, use the following dependencies:
 
-Solution: Taylor sabotaged the machine to discourage coffee consumption.
+// SLF4J API
+implementation 'org.slf4j:slf4j-api:1.7.36'
 
-Story 3: “The Mysterious Email”
+// Log4j 2 Core and API
+implementation 'org.apache.logging.log4j:log4j-api:2.17.2'
+implementation 'org.apache.logging.log4j:log4j-core:2.17.2'
 
-Story:
+// SLF4J to Log4j2 bridge
+implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2'
 
-An unauthorized email about a “company merger” was sent from the CEO’s account. Who accessed the CEO’s laptop?
+3. Remove Conflicting Libraries
 
-Suspects:
-	1.	Alex (The CEO’s Assistant):
-	•	Knows the CEO’s schedule and passwords.
-	•	Claims they were busy preparing for a meeting.
-	2.	Jordan (The IT Specialist):
-	•	Has admin-level access to all office devices.
-	•	Says they were “fixing software issues” on someone else’s laptop.
-	3.	Taylor (The Head of PR):
-	•	Knew the fake merger announcement would create chaos.
-	•	Was seen near the CEO’s desk earlier.
-	4.	Morgan (The Office Prankster):
-	•	Known for playing jokes.
-	•	Says they were “just cleaning up” the CEO’s desk.
+Exclude other logging libraries (e.g., Logback) to avoid clashes. For example:
 
-Clues:
-	1.	The email was sent at 9:05 AM while the CEO was in a meeting.
-	2.	Jordan’s USB drive was left near the CEO’s laptop.
-	3.	Alex had login details written on a sticky note in their notebook.
-	4.	Morgan was overheard saying, “This will be funny!” to a colleague.
+configurations.all {
+    exclude group: 'ch.qos.logback', module: 'logback-classic'
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+}
 
-Solution: Morgan accessed the laptop as a prank, not realizing the consequences.
+4. Clean and Rebuild
 
-Story 4: “The Missing Laptop”
+Clean your Gradle cache and rebuild the project:
 
-Story:
+./gradlew clean build
 
-The marketing team’s presentation laptop disappeared overnight. Who took it?
+5. Verify SLF4J Binding at Runtime
 
-Suspects:
-	1.	Alex (The Night Owl):
-	•	Claims they stayed late to finish their work.
-	•	Was seen near the marketing team’s desk.
-	2.	Jordan (The IT Specialist):
-	•	Frequently collects laptops for updates.
-	•	Says they “didn’t take any devices yesterday.”
-	3.	Taylor (The Rival Team Lead):
-	•	Competing for attention in the same presentation slot.
-	•	Left the office unusually early that evening.
-	4.	Morgan (The Forgetful Intern):
-	•	Was last seen borrowing the laptop to test software.
-	•	Said they “forgot where they put it.”
+If you want to confirm which logging implementation SLF4J is using at runtime, include:
 
-Clues:
-	1.	CCTV shows Alex leaving the office at midnight carrying a laptop bag.
-	2.	A sticky note saying “Update due!” was found on Jordan’s desk.
-	3.	Morgan’s fingerprints are on the empty laptop bag.
-	4.	Taylor told someone, “They won’t present anything tomorrow if I have my way.”
+System.out.println(org.slf4j.LoggerFactory.getILoggerFactory());
 
-Solution: Taylor took the laptop to sabotage the presentation.
+You should see something like:
+org.apache.logging.slf4j.Log4jLoggerFactory.
 
-Story 5: “The Office Cake Incident”
+Final Notes
+	•	Use consistent versions of SLF4J and Log4j libraries (e.g., 1.7.x for SLF4J and 2.x for Log4j).
+	•	Avoid including multiple logging implementations in the classpath.
 
-Story:
-
-A surprise birthday cake was ordered, but someone took a large slice before the party. Who committed the cake crime?
-
-Suspects:
-	1.	Alex (The Sweet Tooth):
-	•	Known for loving desserts.
-	•	Says they “didn’t know it was for the party.”
-	2.	Jordan (The Gym Enthusiast):
-	•	On a strict diet but often complains about “missing out” on sweets.
-	•	Was seen lingering near the kitchen.
-	3.	Taylor (The Distracted Planner):
-	•	Ordered the cake but forgot to pick it up on time.
-	•	Claims they didn’t see the cake before the incident.
-	4.	Morgan (The Hungry Intern):
-	•	Said they were “starving” after skipping breakfast.
-	•	Was spotted leaving the pantry with a napkin in hand.
-
-Clues:
-	1.	A cake-smeared fork was found in the sink.
-	2.	A crumb trail led to Morgan’s desk.
-	3.	Alex was overheard saying, “I couldn’t resist!” near the kitchen.
-	4.	Jordan’s desk had a “Protein Cheat Day” sticky note.
-
-Solution: Alex took the slice, thinking the cake was up for grabs.
-
-Would you like me to package these into a printable PDF for easy use during your office event? Let me know!
+Let me know if you need help refining your dependencies further!
