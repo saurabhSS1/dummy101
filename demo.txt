@@ -1,65 +1,151 @@
-The error java.lang.NoSuchMethodError: <init>(org.apache.logging.slf4j.Log4jLoggerFactory) indicates a conflict between SLF4J and Log4j versions. This typically happens when the versions of SLF4J, Log4j, or their bridges are incompatible or when multiple logging libraries are present.
+1. Java 17 Code Setup
 
-Root Cause
-	•	SLF4J is trying to bind to Log4j, but the required method or constructor is missing due to version mismatches.
-	•	This can happen if you have both Log4j and another logging framework (like Logback) or incompatible versions in the classpath.
+Work Description:
+	•	Set up the project to use Java 17.
+	•	Update build configuration to ensure compatibility.
 
-Solution Steps
+Acceptance Criteria:
+	1.	Java 17 is configured in the build file.
+	2.	Project builds and runs successfully.
+	3.	Code is pushed to the repository.
 
-1. Verify Dependencies
+2. Code Changes in the Gradle Related to New Library SDK 3.0
 
-Check your build.gradle file and identify all logging dependencies. You may have multiple logging libraries conflicting.
-	•	Use the following Gradle command to list dependencies:
+Work Description:
+	•	Update build.gradle to include SDK 3.0.
+	•	Verify compatibility and resolve dependency issues.
 
-./gradlew dependencies
+Acceptance Criteria:
+	1.	SDK 3.0 is added to build.gradle.
+	2.	Project builds successfully without errors.
+	3.	Changes are pushed to the repository.
 
+3. Java 17 Code Changes
 
+Work Description:
+	•	Refactor existing code to ensure compatibility with Java 17.
+	•	Address deprecated features and warnings.
 
-Look for slf4j, log4j, or logback dependencies.
+Acceptance Criteria:
+	1.	Code is updated for Java 17 compatibility.
+	2.	Project builds successfully without warnings or errors.
+	3.	Code is committed and pushed to the repository.
 
-2. Fix Logging Dependency Conflict
+4. Model Class Generation Using OAS File
 
-Ensure you include only one logging framework and bridge SLF4J correctly to Log4j.
+Work Description:
+	•	Generate model classes using the provided OAS file.
+	•	Ensure proper class structure and naming conventions.
 
-For Log4j 2 with SLF4J Integration, use the following dependencies:
+Acceptance Criteria:
+	1.	Model classes are generated from the OAS file.
+	2.	Classes are free of errors and adhere to project standards.
+	3.	Code is committed to the repository.
 
-// SLF4J API
-implementation 'org.slf4j:slf4j-api:1.7.36'
+5. Model Class or Service Layer Code Changes
 
-// Log4j 2 Core and API
-implementation 'org.apache.logging.log4j:log4j-api:2.17.2'
-implementation 'org.apache.logging.log4j:log4j-core:2.17.2'
+Work Description:
+	•	Update model classes and service layer code as per new requirements.
 
-// SLF4J to Log4j2 bridge
-implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2'
+Acceptance Criteria:
+	1.	Changes are implemented and reviewed.
+	2.	Service layer and models function as expected.
+	3.	Code is committed and pushed to the repository.
 
-3. Remove Conflicting Libraries
+6. HTTP Client Connectivity for SDK 3.0
 
-Exclude other logging libraries (e.g., Logback) to avoid clashes. For example:
+Work Description:
+	•	Integrate HTTP client for communication with SDK 3.0.
+	•	Configure and test connectivity.
 
-configurations.all {
-    exclude group: 'ch.qos.logback', module: 'logback-classic'
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
-    exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
-}
+Acceptance Criteria:
+	1.	HTTP client is configured for SDK 3.0.
+	2.	Connectivity is validated with successful responses.
+	3.	Code changes are pushed to the repository.
 
-4. Clean and Rebuild
+7. Jenkins Pipeline Creation for the API for Non-Prod
 
-Clean your Gradle cache and rebuild the project:
+Work Description:
+	•	Create a Jenkins pipeline for building and deploying the API to non-prod environments.
 
-./gradlew clean build
+Acceptance Criteria:
+	1.	Jenkins pipeline is created and configured.
+	2.	Pipeline successfully builds and deploys the API.
+	3.	Pipeline logs are accessible.
 
-5. Verify SLF4J Binding at Runtime
+8. Sonar and Veracode Pipeline Creation
 
-If you want to confirm which logging implementation SLF4J is using at runtime, include:
+Work Description:
+	•	Configure SonarQube for code quality checks.
+	•	Integrate Veracode for security scans.
 
-System.out.println(org.slf4j.LoggerFactory.getILoggerFactory());
+Acceptance Criteria:
+	1.	Sonar and Veracode pipelines are created.
+	2.	Code quality and security reports are generated.
+	3.	Pipelines execute successfully.
 
-You should see something like:
-org.apache.logging.slf4j.Log4jLoggerFactory.
+9. Deployment on SIT ENV
 
-Final Notes
-	•	Use consistent versions of SLF4J and Log4j libraries (e.g., 1.7.x for SLF4J and 2.x for Log4j).
-	•	Avoid including multiple logging implementations in the classpath.
+Work Description:
+	•	Deploy the application to the SIT environment.
+	•	Verify successful deployment.
 
-Let me know if you need help refining your dependencies further!
+Acceptance Criteria:
+	1.	Application is deployed to SIT.
+	2.	No deployment errors occur.
+	3.	Deployment logs are verified.
+
+10. Deployment on OAT ENV
+
+Work Description:
+	•	Deploy the application to the OAT environment.
+	•	Verify successful deployment.
+
+Acceptance Criteria:
+	1.	Application is deployed to OAT.
+	2.	No deployment errors occur.
+	3.	Deployment logs are verified.
+
+11. RAML to OAS Conversion
+
+Work Description:
+	•	Convert existing RAML files to OAS format.
+	•	Validate the converted specifications.
+
+Acceptance Criteria:
+	1.	RAML files are successfully converted to OAS.
+	2.	Converted files are validated and free of errors.
+	3.	Converted files are committed to the repository.
+
+12. Addition of RAML to Stash Repository Stack
+
+Work Description:
+	•	Add RAML files to the Stash repository.
+	•	Ensure proper version control.
+
+Acceptance Criteria:
+	1.	RAML files are added to the repository.
+	2.	Files are versioned and accessible.
+	3.	Code is pushed to the repository.
+
+13. SIT ENV Testing
+
+Work Description:
+	•	Perform testing on the SIT environment.
+	•	Validate API functionality, stability, and integration.
+
+Acceptance Criteria:
+	1.	All test cases pass successfully on SIT.
+	2.	Defects, if any, are documented and resolved.
+	3.	SIT testing report is shared.
+
+14. OAT ENV VPT Testing
+
+Work Description:
+	•	Perform VPT (Validation and Performance Testing) on the OAT environment.
+	•	Ensure the application meets performance and stability benchmarks.
+
+Acceptance Criteria:
+	1.	VPT is completed on OAT.
+	2.	Application meets performance and validation criteria.
+	3.	Testing report is documented and shared.
