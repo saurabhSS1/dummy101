@@ -2,7 +2,7 @@ Here’s a professional yet heartfelt email you can send to the hiring manager, 
 
 Subject: Application for Senior Full Stack Developer Role
 
-Dear Shah Naishadh Rameshkumar,
+Dear Sir,
 
 I hope this email finds you well. It’s always a privilege to witness your leadership and the impact you bring to the team at Barclays. I am writing to express my keen interest in the Senior Full Stack Developer role (Java, Angular) in your team.
 
